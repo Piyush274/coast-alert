@@ -20,11 +20,13 @@ import {
 import { HazardService } from "@/services/hazardService";
 import { HazardReport } from "@/types/hazard";
 import Navigation from "@/components/Navigation";
+import HazardMap from "@/components/HazardMap";
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [recentReports, setRecentReports] = useState<HazardReport[]>([]);
+  const [allReports, setAllReports] = useState<HazardReport[]>([]);
   const [stats, setStats] = useState({
     totalReports: 0,
     pendingReports: 0,
@@ -33,15 +35,22 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [mapFilters, setMapFilters] = useState({
+    severity: 'all',
+    status: 'all',
+    hazardType: 'all'
+  });
   
   const loadDashboardData = async () => {
     try {
-      const [reports, dashboardStats] = await Promise.all([
+      const [reports, allReportsData, dashboardStats] = await Promise.all([
         HazardService.getRecentReports(5),
+        HazardService.getAllReports(),
         HazardService.getDashboardStats()
       ]);
       
       setRecentReports(reports);
+      setAllReports(allReportsData);
       setStats(dashboardStats);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -59,6 +68,15 @@ const Dashboard = () => {
     setRefreshing(true);
     await loadDashboardData();
   };
+
+  const filteredReports = allReports.filter(report => {
+    if (mapFilters.severity !== 'all' && report.severity !== mapFilters.severity) return false;
+    if (mapFilters.status !== 'all' && report.status !== mapFilters.status) return false;
+    if (mapFilters.hazardType !== 'all' && report.hazardType !== mapFilters.hazardType) return false;
+    return true;
+  });
+
+  const uniqueHazardTypes = [...new Set(allReports.map(report => report.hazardType))];
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
@@ -207,24 +225,74 @@ const Dashboard = () => {
           {/* Interactive Map */}
           <Card className="lg:col-span-2 shadow-card">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Map className="w-5 h-5 mr-2" />
-                Interactive Hazard Map
-              </CardTitle>
-              <CardDescription>
-                Real-time visualization of reported hazards and social media hotspots
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80 bg-primary-light rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <Map className="w-16 h-16 text-primary mx-auto mb-4" />
-                  <p className="text-primary font-medium">Interactive Map Loading...</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Integration with Mapbox/Google Maps coming soon
-                  </p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div>
+                  <CardTitle className="flex items-center">
+                    <Map className="w-5 h-5 mr-2" />
+                    Interactive Hazard Map
+                  </CardTitle>
+                  <CardDescription>
+                    Real-time visualization of reported hazards and social media hotspots
+                    {!loading && (
+                      <span className="block mt-1 text-xs text-muted-foreground">
+                        Showing {filteredReports.length} of {allReports.length} reports
+                      </span>
+                    )}
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
+                  <select
+                    value={mapFilters.severity}
+                    onChange={(e) => setMapFilters(prev => ({ ...prev, severity: e.target.value }))}
+                    className="text-xs px-2 py-1 border rounded-md bg-background"
+                  >
+                    <option value="all">All Severity</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                  <select
+                    value={mapFilters.status}
+                    onChange={(e) => setMapFilters(prev => ({ ...prev, status: e.target.value }))}
+                    className="text-xs px-2 py-1 border rounded-md bg-background"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="verified">Verified</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                  <select
+                    value={mapFilters.hazardType}
+                    onChange={(e) => setMapFilters(prev => ({ ...prev, hazardType: e.target.value }))}
+                    className="text-xs px-2 py-1 border rounded-md bg-background"
+                  >
+                    <option value="all">All Types</option>
+                    {uniqueHazardTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="h-80 bg-primary-light rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
+                    <p className="text-primary font-medium">Loading Map...</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Fetching hazard reports and initializing map
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <HazardMap 
+                  reports={filteredReports} 
+                  height="320px"
+                  className="border rounded-lg"
+                />
+              )}
             </CardContent>
           </Card>
 
