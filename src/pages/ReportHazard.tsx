@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { HazardService } from "@/services/hazardService";
 import { HazardReportFormData } from "@/types/hazard";
+import Navigation from "@/components/Navigation";
 
 const ReportHazard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -188,7 +189,9 @@ const ReportHazard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-8">
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <div className="pt-20 pb-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -405,6 +408,7 @@ const ReportHazard = () => {
             </Card>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
